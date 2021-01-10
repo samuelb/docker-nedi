@@ -1,0 +1,33 @@
+version: "3"
+
+volumes:
+  nedidb: {}
+
+services:
+
+  nedidb:
+    container_name: nedidb
+    image: mariadb
+    volumes:
+      - nedidb:/var/lib/mysql
+    environment:
+      - MYSQL_ROOT_PASSWORD=dbadm
+      - MYSQL_DATABASE=nedi
+      - MYSQL_USER=nedi
+      - MYSQL_PASSWORD=nedi
+
+  nedi:
+    container_name: nedi
+    build: .
+    image: nedi
+    ports:
+      - 8080:80
+    volumes:
+      - ./nedi:/etc/nedi
+    environment:
+      - MYSQL_DATABASE=nedi
+      - MYSQL_USER=nedi
+      - MYSQL_PASSWORD=nedi
+      - MYSQL_HOST=mariadb
+    depends_on:
+      - nedidb
