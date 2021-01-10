@@ -1,5 +1,8 @@
 FROM php:7-apache-buster
 
+MAINTAINER samuelb
+LABEL org.opencontainers.image.source https://github.com/samuelb/docker-nedi
+
 RUN set -ex; \
     apt-get update; \
     apt-get install -y --no-install-recommends \
