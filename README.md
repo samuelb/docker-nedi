@@ -15,6 +15,7 @@ is useful to you, consider supporting its development with
   receiver (`snmptrapd` → `trap.pl`) and NetFlow collector (`nfcapd` for `flowi.pl`)
 - Discovery schedule managed in the GUI (cron)
 - MariaDB 11.8 as database
+- Runs on amd64 and arm64, e.g. a Raspberry Pi (see [Platforms](#platforms))
 
 ## Quick start
 
@@ -22,6 +23,9 @@ is useful to you, consider supporting its development with
 cp .env.example .env    # then set your own passwords in .env
 docker compose up -d --build
 ```
+
+Building needs BuildKit, which Docker's own packages include (the
+`docker-buildx` package when using Debian's `docker.io`).
 
 Open <http://localhost:8080> and log in with **admin / admin**. Change the
 password right away (User > Profile).
@@ -32,6 +36,19 @@ discoveries are configured in System > Setup > Schedule (`inc/crontab`).
 
 To use the image built by GitHub Actions instead of building locally, run
 `docker compose pull` before `docker compose up -d`.
+
+## Platforms
+
+The image runs on `linux/amd64` and `linux/arm64`, and CI tests the compose
+stack natively on both. Building and pulling (see [Images](#images)) pick the
+host's platform automatically, so the quick start is the same on a 64-bit ARM
+board like the Raspberry Pi 3, 4 or 5.
+
+On a Raspberry Pi, use a 64-bit OS (Raspberry Pi OS 64-bit, Debian or Ubuntu
+arm64). There is no 32-bit ARM image; MariaDB doesn't publish one either. The
+binaries in both images are aligned for the 16 KiB memory pages of the Pi 5's
+default kernel and don't use jemalloc, so no 4 KiB page kernel is needed.
+An idle stack with a new database uses about 250 MB of RAM.
 
 ## Ports
 
@@ -203,8 +220,8 @@ docker compose logs -f nedi
 
 ## Images
 
-GitHub Actions publishes the image for `linux/amd64` and `linux/arm64` to
-`ghcr.io/samuelb/nedi`:
+GitHub Actions publishes the image for `linux/amd64` and `linux/arm64` (see
+[Platforms](#platforms)) to `ghcr.io/samuelb/nedi`:
 
 | Tag            | Built from            |
 |----------------|-----------------------|
