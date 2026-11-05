@@ -1,0 +1,7 @@
+# Allow NeDi's CLI access to older network devices
+# (NeDi's nedian.sh installer enables diffie-hellman-group1-sha1 as well)
+Host *
+    KexAlgorithms +diffie-hellman-group1-sha1,diffie-hellman-group14-sha1,diffie-hellman-group-exchange-sha1
+    HostKeyAlgorithms +ssh-rsa
+    PubkeyAcceptedAlgorithms +ssh-rsa
+    Ciphers +aes128-cbc,aes256-cbc,3des-cbc

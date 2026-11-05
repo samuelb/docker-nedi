@@ -1,0 +1,9 @@
+# nfdump >= 1.7.6 is needed by NeDi, trixie has 1.7.5
+Package: nfdump
+Pin: release n=forky
+Pin-Priority: 990
+
+# Never install anything else from forky
+Package: *
+Pin: release n=forky
+Pin-Priority: -1
