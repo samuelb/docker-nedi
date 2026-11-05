@@ -1,0 +1,61 @@
+name: NeDi release
+
+# Opens an issue when https://www.nedi.ch/download/ offers a NeDi release other
+# than the one the Dockerfile builds. Fails when the page can't be parsed.
+on:
+  schedule:
+    - cron: '41 4 * * 1'
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Check nedi.ch for a new release
+        run: |
+          current="$(sed -n 's/^ARG NEDI_VERSION=//p' Dockerfile)"
+
+          # The page has a line like:
+          # <a href="../pub/nedi-2.4C.zip">nedi-2.4C</a> unzip to get a tgz (Password is RR4JC shasum:10c6...)
+          line="$(curl -fsSL https://www.nedi.ch/download/ | grep -m 1 -E 'pub/nedi-[0-9A-Za-z.]+\.zip' || true)"
+          version="$(printf '%s\n' "$line" | sed -nE 's|.*pub/nedi-([0-9A-Za-z.]+)\.zip.*|\1|p')"
+          password="$(printf '%s\n' "$line" | sed -nE 's/.*Password is ([0-9A-Za-z]+).*/\1/p')"
+          sha1="$(printf '%s\n' "$line" | sed -nE 's/.*shasum: *([0-9a-f]{40}).*/\1/p')"
+
+          if [ -z "$current" ] || [ -z "$version" ] || [ -z "$password" ] || [ -z "$sha1" ]; then
+            echo "::error::Could not read the NeDi release (Dockerfile: '$current', nedi.ch: '$line')"
+            exit 1
+          fi
+          echo "nedi.ch: $version, Dockerfile: $current"
+          if [ "$version" = "$current" ]; then
+            exit 0
+          fi
+
+          # Closed issues count too, so a release that was skipped is not reported again
+          title="NeDi $version is available"
+          if gh issue list --state all --search "\"$title\" in:title" --json title --jq '.[].title' | grep -qxF "$title"; then
+            echo "Already reported"
+            exit 0
+          fi
+
+          gh issue create --title "$title" --body-file - <<EOF
+          https://www.nedi.ch/download/ offers NeDi $version, the image builds NeDi $current.
+
+          | Build argument | Value |
+          |---|---|
+          | \`NEDI_VERSION\` | \`$version\` |
+          | \`NEDI_ZIP_PASSWORD\` | \`$password\` |
+          | \`NEDI_SHA1\` | \`$sha1\` |
+
+          - [ ] Update the build arguments in the \`Dockerfile\` and the README
+          - [ ] Check that the image's changes to NeDi still apply (the build fails if the \`header.php\` patch doesn't)
+          - [ ] Test the upgrade of an existing installation (database schema update by \`nedi.pl -i updatedb\`)
+          EOF
