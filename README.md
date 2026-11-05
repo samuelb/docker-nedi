@@ -230,6 +230,10 @@ GitHub Actions publishes the image for `linux/amd64` and `linux/arm64` (see
 
 The tags are versions of this repository, not of NeDi.
 
+Every day, GitHub Actions checks `latest` and the newest release for Debian
+package updates and rebuilds the outdated ones, so `docker compose pull` also
+brings Debian's security updates. Tags of older releases are not rebuilt.
+
 ## Building
 
 The NeDi release and its checksum are build arguments:

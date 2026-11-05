@@ -1,0 +1,104 @@
+name: Debian updates
+
+# Debian's updates only reach the image when it is built. Every day this
+# checks the published images, `latest` and the newest release (`1.2.3` from
+# the Git tag `v1.2.3`), on amd64 and arm64: it simulates an upgrade with the
+# image's own apt sources and pinning. Outdated images are rebuilt by running
+# the Docker workflow, which tests the build before it pushes. To rebuild an
+# image regardless, run the Docker workflow manually on `master` or the tag.
+on:
+  schedule:
+    - cron: '37 4 * * *'
+  workflow_dispatch:
+
+jobs:
+  images:
+    name: find images
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      refs: ${{ steps.refs.outputs.refs }}
+    steps:
+      - id: refs
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # Releases only, pre-release tags like v1.2.3-rc.1 are skipped
+          tag="$(gh api "repos/$GITHUB_REPOSITORY/git/matching-refs/tags/v" --paginate \
+            --jq '.[].ref | ltrimstr("refs/tags/") | select(test("^v[0-9]+\\.[0-9]+\\.[0-9]+$"))' \
+            | sort -V | tail -n 1)"
+          echo "refs=master $tag" >> "$GITHUB_OUTPUT"
+
+  check:
+    name: check (${{ matrix.arch }})
+    needs: images
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: amd64
+            runner: ubuntu-latest
+          - arch: arm64
+            runner: ubuntu-24.04-arm
+    runs-on: ${{ matrix.runner }}
+    permissions: {}
+    # Each architecture sets its own output, GitHub combines them
+    outputs:
+      amd64: ${{ steps.check.outputs.amd64 }}
+      arm64: ${{ steps.check.outputs.arm64 }}
+    steps:
+      - id: check
+        env:
+          ARCH: ${{ matrix.arch }}
+          IMAGE: ghcr.io/${{ github.repository_owner }}/nedi
+          REFS: ${{ needs.images.outputs.refs }}
+        run: |
+          image="${IMAGE,,}"
+          outdated=""
+          for ref in $REFS; do
+            if [ "$ref" = master ]; then tag=latest; else tag="${ref#v}"; fi
+            out="$(docker run --rm --pull always --platform "linux/$ARCH" --entrypoint sh "$image:$tag" -c \
+              'apt-get -qq -o Acquire::Retries=3 update && apt-get --simulate dist-upgrade')"
+            updates="$(printf '%s\n' "$out" | grep '^Inst ' || true)"
+            if [ -z "$updates" ]; then
+              echo "$image:$tag is up to date"
+              continue
+            fi
+            echo "$image:$tag has updates:"
+            echo "$updates"
+            {
+              echo "### \`$image:$tag\` ($ARCH)"
+              echo '```'
+              echo "$updates"
+              echo '```'
+            } >> "$GITHUB_STEP_SUMMARY"
+            outdated="$outdated $ref"
+          done
+          echo "$ARCH=${outdated# }" >> "$GITHUB_OUTPUT"
+
+  rebuild:
+    needs: check
+    # Rebuild what was found outdated even if the other architecture's check failed
+    if: ${{ !cancelled() && (needs.check.outputs.amd64 != '' || needs.check.outputs.arm64 != '') }}
+    runs-on: ubuntu-latest
+    permissions:
+      actions: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      OUTDATED: ${{ needs.check.outputs.amd64 }} ${{ needs.check.outputs.arm64 }}
+    steps:
+      - run: |
+          for ref in $(tr -s ' ' '\n' <<< "$OUTDATED" | sort -u); do
+            # Status of the newest build of the branch or tag (pull requests aside)
+            status="$(gh run list --workflow docker-publish.yml --branch "$ref" --limit 20 \
+              --json event,status \
+              --jq 'map(select(.event != "pull_request"))[0].status // "completed"')"
+            if [ "$status" != completed ]; then
+              echo "$ref: a build is already running"
+              continue
+            fi
+            echo "$ref: rebuilding"
+            gh workflow run docker-publish.yml --ref "$ref"
+          done

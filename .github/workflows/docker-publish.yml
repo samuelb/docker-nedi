@@ -8,7 +8,14 @@ on:
     tags:
       - v*
   pull_request:
+  # Also run by debian-updates.yml when Debian has updates for a published image
   workflow_dispatch:
+
+# One run per branch or tag at a time, so an older build can't overwrite the
+# image of a newer one. A new push to a pull request cancels its running test.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   # Every published platform is built and tested natively on a matching runner
@@ -93,5 +100,9 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+          # Cached apt layers would keep outdated Debian packages, so rebuilds
+          # (for Debian updates or manual) start from scratch, which also
+          # refreshes the cache
+          no-cache: ${{ github.event_name == 'workflow_dispatch' }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
