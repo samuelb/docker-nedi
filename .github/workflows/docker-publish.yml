@@ -66,6 +66,9 @@ jobs:
             type=raw,value=latest,enable={{is_default_branch}}
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
+          # GitHub reports the repository's license as GPL-3.0 (only)
+          labels: |
+            org.opencontainers.image.licenses=GPL-3.0-or-later
 
       - uses: docker/build-push-action@v7
         with:

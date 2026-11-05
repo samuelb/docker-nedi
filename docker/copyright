@@ -1,0 +1,54 @@
+NeDi
+====
+
+NeDi was downloaded from https://www.nedi.ch/download/. The image keeps it in
+/usr/src/nedi and copies it to /var/nedi on the first start.
+
+Copyright: Remo Rickli & NeDi Community
+License: GPL-3.0-or-later
+
+ This program is free software: you can redistribute it and/or modify
+ it under the terms of the GNU General Public License as published by
+ the Free Software Foundation, either version 3 of the License, or
+ (at your option) any later version.
+
+ This program is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU General Public License for more details.
+
+ The complete text of the GNU General Public License version 3 can be
+ found in /usr/share/common-licenses/GPL-3.
+
+NeDi bundles JavaScript and PHP libraries in html/inc (Chart.js, D3,
+Leaflet, PHP QR Code and others), which are distributed under their own
+licenses as stated in those files.
+
+Changes made by this image (2026-11-05):
+
+ - html/inc/header.php: PHP's E_DEPRECATED messages are hidden as well,
+   because NeDi's PHP 7 era code floods the log with them on PHP 8.4.
+
+ - /usr/share/perl5/Net/SNMP/Message.pm (Debian package libnet-snmp-perl,
+   licensed under the same terms as Perl): records the send time of SNMP
+   requests for NeDi's latency measurement, the same patch NeDi's
+   installer nedian.sh applies.
+
+Both files carry a notice of the change.
+
+Image packaging
+===============
+
+The Dockerfile, scripts and configuration files of this image, e.g.
+/usr/local/bin/docker-entrypoint.sh, /usr/local/bin/healthcheck.sh and
+/etc/supervisor/nedi.conf. Source: https://github.com/samuelb/docker-nedi
+
+Copyright: 2021-2026 Samuel Barabas
+License: GPL-3.0-or-later (same terms as above)
+
+Other software
+==============
+
+The image contains Debian packages, each under its own license, see
+/usr/share/doc/*/copyright. Their source code is available from Debian,
+e.g. with "apt-get source" or from https://snapshot.debian.org.

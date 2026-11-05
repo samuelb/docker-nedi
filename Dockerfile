@@ -31,6 +31,10 @@ RUN set -eux; \
     sed -i 's/error_reporting(E_ALL & ~(E_WARNING|E_NOTICE));/error_reporting(E_ALL \& ~(E_WARNING|E_NOTICE|E_DEPRECATED));/' \
         /usr/src/nedi/html/inc/header.php; \
     test "$(grep -c 'E_NOTICE|E_DEPRECATED' /usr/src/nedi/html/inc/header.php)" -eq 2; \
+    # The GPL asks for a notice in modified files
+    test "$(head -n 1 /usr/src/nedi/html/inc/header.php)" = '<?php'; \
+    sed -i '1a // Modified by docker-nedi on 2026-11-05: hides E_DEPRECATED as well (see /usr/share/doc/nedi/copyright)' \
+        /usr/src/nedi/html/inc/header.php; \
     # Stamp the distribution so the entrypoint can detect image upgrades
     ( cd /usr/src/nedi && find . -type f -print0 | sort -z | xargs -0 sha1sum | sha1sum | cut -d' ' -f1 ) \
         > /usr/src/nedi/.image-version
@@ -42,7 +46,8 @@ FROM debian:${DEBIAN_RELEASE}-slim
 
 LABEL org.opencontainers.image.title="NeDi" \
       org.opencontainers.image.description="NeDi network discovery and monitoring (nedi.ch) on Debian" \
-      org.opencontainers.image.source="https://github.com/samuelb/docker-nedi"
+      org.opencontainers.image.source="https://github.com/samuelb/docker-nedi" \
+      org.opencontainers.image.licenses="GPL-3.0-or-later"
 
 # NeDi's flowi.pl and traffic GUI aggregate flows with custom output formats
 # (nfdump -A ... -o fmt:...), which needs nfdump >= 1.7.6. Trixie ships 1.7.5,
@@ -111,6 +116,8 @@ RUN set -eux; \
     if ! grep -q 'Time::HiRes' "$f"; then \
         sed -i '23 i use Time::HiRes;' "$f"; \
         sed -i '687 i \ \ \ $this->{_transport}->{_send_time} = Time::HiRes::time;' "$f"; \
+        # The GPL and the Artistic License ask for a notice in modified files
+        sed -i "1a # Modified by docker-nedi on 2026-11-05: records the send time for NeDi's SNMP latency measurement" "$f"; \
     fi; \
     # Fail the build if the patch did not land where it is supposed to
     grep -B2 -F '$this->{_transport}->{_send_time} = Time::HiRes::time;' "$f" \
@@ -150,6 +157,8 @@ COPY --chmod=755 docker/entrypoint.sh /usr/local/bin/docker-entrypoint.sh
 COPY --chmod=755 docker/healthcheck.sh /usr/local/bin/healthcheck.sh
 
 COPY --from=nedi-src --chown=www-data:www-data /usr/src/nedi /usr/src/nedi
+# License and copyright of NeDi and of this image, and the changes made to NeDi
+COPY docker/copyright /usr/share/doc/nedi/copyright
 
 WORKDIR /var/nedi
 VOLUME ["/var/nedi", "/var/nfdump"]
