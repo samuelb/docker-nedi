@@ -1,0 +1,13 @@
+version: 2
+updates:
+  # Dependabot only covers the workflows' actions. Images with Debian updates
+  # are rebuilt by workflows/debian-updates.yml, and new NeDi releases are
+  # reported by workflows/nedi-release.yml.
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      github-actions:
+        patterns:
+          - "*"
